@@ -141,6 +141,8 @@ h1{font-size:clamp(28px,4.4vw,44px);font-weight:800;letter-spacing:-.025em;margi
 .ctl.big{flex:0 0 auto;min-width:190px;background:var(--on);color:var(--ink);border-color:var(--on);
   font-size:20px;font-weight:800}
 .ctl.big.paused{background:var(--off);border-color:var(--off)}
+.ctl.sync{background:var(--base);border-color:var(--base);color:#fff;font-weight:800;min-width:96px}
+#syncMsg{color:var(--base);font-weight:800;margin-right:14px;opacity:0;transition:opacity .25s}
 .ctl.exit{margin-left:auto}
 .ctl.exit,.ctl.jump{position:static}
 @media (max-width:640px){.ctl{padding:0 13px;font-size:14px}.ctl.big{min-width:130px}}
@@ -191,6 +193,7 @@ textarea{width:100%;min-height:230px;background:var(--surface);color:var(--text)
       <div class="f"><label for="fOn">Seconds on</label><input id="fOn" type="number" min="1" max="60" step="0.5" inputmode="decimal"></div>
       <div class="f"><label for="fOff">Seconds off</label><input id="fOff" type="number" min="1" max="60" step="0.5" inputmode="decimal"></div>
       <div class="f"><label for="fBase">Base counts between</label><input id="fBase" type="number" min="0" max="20" step="1" inputmode="numeric"></div>
+      <div class="f"><label for="fLead">Lead-in (sec)</label><input id="fLead" type="number" min="0" max="60" step="1" inputmode="numeric"></div>
       <div class="f"><label for="fSound">Sound</label>
         <select id="fSound" style="width:110px;background:var(--ink);border:1px solid var(--line);border-radius:9px;padding:10px 12px;color:var(--text);font:inherit;font-weight:700;font-size:15px">
           <option value="1">On</option><option value="0">Off</option></select></div>
@@ -206,14 +209,16 @@ textarea{width:100%;min-height:230px;background:var(--surface);color:var(--text)
     </div>
     <p class="note" id="dataNote"></p>
   </div>
-  <p class="note">The screen stays awake while a session runs.</p>
+  <p class="note">The screen stays awake while a session runs. <b>Sync</b> during a session snaps the
+  timer to the nearest impulse boundary — tap it the instant you feel a contraction begin and the app
+  lines up with your suit. Lead-in gives you time to hit play on the suit app before this one starts.</p>
 </div></section>
 
 <!-- ============ RUN ============ -->
 <section id="run" class="screen">
   <div class="topbar">
     <div class="where" id="whereTxt"></div>
-    <div class="clock"><b id="clockLeft">20:00</b> left</div>
+    <div class="clock"><span id="syncMsg"></span><b id="clockLeft">20:00</b> left</div>
   </div>
   <div class="bar"><i id="barFill"></i></div>
 
@@ -237,6 +242,7 @@ textarea{width:100%;min-height:230px;background:var(--surface);color:var(--text)
   <svg class="wave" id="wave" preserveAspectRatio="none" aria-hidden="true"></svg>
 
   <div class="controls">
+    <button class="ctl sync" id="syncBtn" aria-label="Sync to the impulse">Sync</button>
     <button class="ctl jump" id="prevBtn" aria-label="Previous exercise">◀  Prev</button>
     <button class="ctl big" id="playBtn">Pause</button>
     <button class="ctl jump" id="nextBtn" aria-label="Next exercise">Next  ▶</button>
@@ -285,7 +291,7 @@ const BUILTIN = {"name": "EMS Home Program", "version": 1, "impulse": {"on": 6, 
 
 /* ---------- persistence ---------- */
 const LS = "dojo.state.v1";
-let store = { rotationIndex:0, program:null, impulse:null, baseCounts:null, sound:1, history:[] };
+let store = { rotationIndex:0, program:null, impulse:null, baseCounts:null, sound:1, leadIn:5, history:[] };
 let db = null;
 
 function localLoad(){ try{ const r=localStorage.getItem(LS); if(r) Object.assign(store, JSON.parse(r)); }catch(e){} }
@@ -317,6 +323,7 @@ function normalize(){
   if(store.rotationIndex>=store.program.days.length) store.rotationIndex=0;
   if(store.sound==null) store.sound=1;
   if(!Array.isArray(store.history)) store.history=[];
+  if(store.leadIn==null) store.leadIn=5;
 }
 function dayTiming(day){
   const g=store.impulse, i=day.impulse||{};
@@ -350,7 +357,8 @@ function renderHome(){
   $("progName").textContent = store.program.name || "Program";
   $("impulseLine").textContent = store.impulse.on+"s on / "+store.impulse.off+"s off";
   $("fOn").value=store.impulse.on; $("fOff").value=store.impulse.off;
-  $("fBase").value=store.baseCounts; $("fSound").value=String(store.sound?1:0);
+  $("fBase").value=store.baseCounts; $("fLead").value=store.leadIn;
+  $("fSound").value=String(store.sound?1:0);
 
   const list=$("dayList"); list.innerHTML="";
   store.program.days.forEach((d,i)=>{
@@ -432,9 +440,37 @@ function buildTimeline(day){
 }
 
 function startSession(di){
+  const lead=Math.max(0,+store.leadIn||0);
+  if(lead>0){ preroll(di,lead); return; }
+  beginSession(di);
+}
+function preroll(di,lead){
+  const day=store.program.days[di], ex=day.exercises[0];
+  show("run"); requestWakeLock();
+  try{ if(!AC) AC=new (window.AudioContext||window.webkitAudioContext)(); AC.resume(); }catch(e){}
+  $("whereTxt").textContent=(day.name||"Session")+" \u00b7 starting";
+  $("clockLeft").textContent=mmss(dayCounts(day).secs);
+  $("barFill").style.width="0%";
+  $("pWord").className="pword base"; $("pWord").textContent="Ready";
+  $("repTxt").innerHTML='<b>'+ex.name+'</b><span class="left">start your suit, then this begins</span>';
+  $("exName").textContent=ex.name||""; $("exKit").textContent=ex.kit||"";
+  $("exCue").textContent=ex.setup||ex.cue||""; $("exNext").textContent="Get into position";
+  const fr=framesFor(ex), slot=$("imgSlot");
+  slot.innerHTML = (fr&&fr.length) ? '<div class="shot single"><img alt=""></div>' : '<div class="ph"></div>';
+  if(fr&&fr.length) slot.querySelector("img").src=fr[0]; else slot.firstChild.textContent=ex.name||"";
+  $("wave").innerHTML=""; $("playBtn").textContent="Start now"; $("playBtn").classList.remove("paused");
+  let left=lead;
+  const paint=()=>{ $("pSec").textContent=left; if(left<=3&&left>0) cueTick(); };
+  paint();
+  const go=()=>{ clearInterval(PRE.iv); PRE.iv=0; beginSession(di); };
+  PRE.go=go;
+  PRE.iv=setInterval(()=>{ left--; if(left<=0){ go(); return; } paint(); },1000);
+}
+const PRE={iv:0,go:null};
+function beginSession(di){
   const day=store.program.days[di];
   const {tl,total,t}=buildTimeline(day);
-  S={ di, day, tl, total, t, elapsed:0, running:true, last:performance.now(),
+  S={ di, day, tl, total, t, elapsed:0, running:true, anchor:performance.now(),
       segIdx:-1, lastSec:-1, lastEx:-1, waveEx:-1, waveKey:null, frames:null, frameIdx:0, exStarts:exStartMap(tl), baseStarts:baseStartMap(tl) };
   show("run"); requestWakeLock();
   try{ if(!AC) AC=new (window.AudioContext||window.webkitAudioContext)(); AC.resume(); }catch(e){}
@@ -447,8 +483,7 @@ function baseStartMap(tl){ const m={}; tl.forEach(s=>{ if(m[s.ei]===undefined &&
 function loop(){ raf=requestAnimationFrame(ts=>{ tick(ts); loop(); }); }
 function tick(ts){
   if(!S) return;
-  if(S.running){ S.elapsed = Math.min(S.total, S.elapsed + (ts - S.last)); }
-  S.last = ts;
+  if(S.running){ S.elapsed = Math.min(S.total, ts - S.anchor); }
   if(S.elapsed>=S.total){ finish(); return; }
   render();
 }
@@ -568,10 +603,34 @@ function paintWave(seg){
 /* ---------- controls ---------- */
 function setRunning(r){
   if(!S) return;
-  S.running=r; S.last=performance.now();
+  S.running=r; if(r) S.anchor=performance.now()-S.elapsed;
   $("playBtn").textContent=r?"Pause":"Resume";
   $("playBtn").classList.toggle("paused",!r);
   if(r) requestWakeLock(); else releaseWakeLock();
+}
+function seek(ms){
+  S.elapsed=Math.max(0,Math.min(S.total,ms));
+  S.anchor=performance.now()-S.elapsed;
+  S.segIdx=-1; S.lastSec=-1; S.lastEx=-1; S.waveKey=null;
+  render();
+}
+function onStarts(){
+  if(!S._ons) S._ons=S.tl.filter(x=>x.k==="on"||(x.k==="base"&&x.sub==="on")).map(x=>x.at);
+  return S._ons;
+}
+function syncNow(){
+  if(!S) return;
+  const a=onStarts(); if(!a.length) return;
+  let best=a[0];
+  for(const t of a) if(Math.abs(t-S.elapsed)<Math.abs(best-S.elapsed)) best=t;
+  const shift=Math.round((best-S.elapsed)/100)/10;
+  if(!S.running) setRunning(true);
+  seek(best); cueOn();
+  toast(shift===0?"Synced":"Synced "+(shift>0?"+":"")+shift.toFixed(1)+"s");
+}
+function toast(msg){
+  const t=$("syncMsg"); t.textContent=msg; t.style.opacity="1";
+  clearTimeout(toast._t); toast._t=setTimeout(()=>{t.style.opacity="0";},1600);
 }
 function jump(dir){
   if(!S) return;
@@ -584,8 +643,7 @@ function jump(dir){
     target = S.exStarts[cur.ei+1];
     if(target===undefined){ finish(); return; }
   }
-  S.elapsed=target; S.segIdx=-1; S.lastSec=-1; S.lastEx=-1; S.waveKey=null;
-  render();
+  seek(target);
 }
 function finish(){
   cancelAnimationFrame(raf); releaseWakeLock();
@@ -606,7 +664,7 @@ function finish(){
     '<div class="stat"><b>'+mmss(stim)+'</b><span>under stimulation</span></div>';
   S=null; selectedDay=store.rotationIndex; renderHome(); show("done"); cueEnd();
 }
-function quit(){ cancelAnimationFrame(raf); releaseWakeLock(); S=null; renderHome(); show("home"); }
+function quit(){ if(PRE.iv){clearInterval(PRE.iv);PRE.iv=0;} cancelAnimationFrame(raf); releaseWakeLock(); S=null; renderHome(); show("home"); }
 
 /* ---------- wake lock ---------- */
 async function requestWakeLock(){
@@ -705,8 +763,9 @@ async function exportProgram(){
 
 /* ---------- wiring ---------- */
 $("startBtn").onclick=()=>startSession(selectedDay);
-$("playBtn").onclick=()=>setRunning(!S.running);
-$("prevBtn").onclick=()=>jump(-1);
+$("playBtn").onclick=()=>{ if(PRE.iv){ PRE.go(); return; } setRunning(!S.running); };
+$("prevBtn").onclick=()=>{ if(!PRE.iv) jump(-1); };
+$("syncBtn").onclick=syncNow;
 $("nextBtn").onclick=()=>jump(1);
 $("exitBtn").onclick=quit;
 $("doneHome").onclick=()=>{ show("home"); };
@@ -724,6 +783,7 @@ $("restoreIn").onchange=e=>{ const f=e.target.files[0]; if(!f) return;
 $("fileBtn").onclick=()=>$("fileIn").click();
 $("fileIn").onchange=e=>{ const f=e.target.files[0]; if(!f) return;
   const r=new FileReader(); r.onload=()=>{ $("jsonBox").value=r.result; loadProgram(r.result); }; r.readAsText(f); };
+$("fLead").onchange=()=>{ store.leadIn=Math.max(0,Math.round(+$("fLead").value||0)); save(); renderHome(); };
 ["fOn","fOff","fBase"].forEach(id=>$(id).onchange=()=>{
   const on=+$("fOn").value||6, off=+$("fOff").value||4, b=Math.max(0,Math.round(+$("fBase").value||0));
   store.impulse={on:Math.max(.5,on), off:Math.max(.5,off)}; store.baseCounts=b;
@@ -734,6 +794,7 @@ $("fSound").onchange=()=>{ store.sound=+$("fSound").value; save(); };
 document.addEventListener("keydown",e=>{
   if(!S) return;
   if(e.code==="Space"){ e.preventDefault(); setRunning(!S.running); }
+  if(e.code==="KeyS"){ e.preventDefault(); syncNow(); }
   if(e.code==="ArrowRight") jump(1);
   if(e.code==="ArrowLeft") jump(-1);
   if(e.code==="Escape") quit();
