@@ -1,27 +1,29 @@
 # Dojo
 
-EMS interval trainer. One self-contained page — exercise photos, timing and program data are all
-embedded, so once the page has loaded it runs with no network.
+EMS interval trainer for home workouts. Served by GitHub Pages at https://jsnitkov.github.io/dojo/.
+After the first online visit, a service worker caches the app and all 55 exercise photos, so it
+launches and runs with no network.
 
 ## Hosting on GitHub Pages
 
-Push these files to a repo, then Settings -> Pages -> Source: `main`, folder `/ (root)`.
-The site appears at `https://<user>.github.io/<repo>/` after a minute or so.
+Settings → Pages → Source: `main`, folder `/ (root)`. Every push to `main` redeploys in about a minute.
 
 ## Adding to a home screen
 
-Open the Pages URL in Safari, Share -> Add to Home Screen. Because this is served as its own page
-(rather than inside another site), it launches genuinely full screen with no browser chrome,
-and uses the dojo icon.
+Open the Pages URL in Safari, Share → Add to Home Screen. It launches full screen with the Dojo icon.
 
 ## Files
 
-| File | Purpose |
+| Path | Purpose |
 |---|---|
-| `index.html` | The whole app, including all 58 exercise photos as embedded data |
+| `index.html`, `styles.css`, `js/app.js` | The app |
+| `js/program.js` | Built-in program and exercise-photo map |
+| `img/` | Exercise photos (start / working position) |
+| `sw.js` | Offline caching |
+| `tools/build_standalone.py` | Builds one self-contained HTML file in `dist/` |
 | `icon-180.png` | iOS home-screen icon |
-| `icon-192.png` / `icon-512.png` | Android / PWA icons |
-| `manifest.webmanifest` | Lets Android install it as a standalone app |
+| `icon-192.png` / `icon-512.png`, `manifest.webmanifest` | PWA install metadata |
+| `CLAUDE.md` | Project notes Claude Code loads automatically |
 
 ## Program format
 
@@ -31,4 +33,5 @@ Use the *Insert template* button in the app to see a working example.
 
 ## State
 
-Rotation position and any imported program are stored in the browser's local storage, per device.
+Rotation position, any imported program and session history are stored in the browser's local
+storage, per device. Use Backup / Restore in the app to move them.
