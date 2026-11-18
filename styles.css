@@ -34,7 +34,7 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
   padding-top:max(var(--pad),env(safe-area-inset-top));
   padding-bottom:max(var(--pad),env(safe-area-inset-bottom))}
 .screen.on{display:block}
-#run.on{display:flex;flex-direction:column;gap:12px}
+#run.on{display:flex;flex-direction:column;gap:10px}
 
 /* ---------- home ---------- */
 .wrap{max-width:980px;margin:0 auto}
@@ -95,9 +95,9 @@ h1{font-size:clamp(28px,4.4vw,44px);font-weight:800;letter-spacing:-.025em;margi
 .psec{font-size:clamp(70px,15vw,170px);font-weight:800;letter-spacing:-.06em;line-height:.86;
   margin:.06em 0 0;font-variant-numeric:tabular-nums}
 .repbox{display:flex;flex-direction:column;line-height:1.04;flex:0 0 auto}
-#repMain{font-size:clamp(23px,3.4vw,34px);font-weight:800;letter-spacing:-.02em;color:var(--text)}
+#repMain{font-size:clamp(30px,4.4vw,44px);font-weight:800;letter-spacing:-.02em;color:var(--text)}
 #repMain b{color:var(--on);font-weight:800}
-#repSub{font-size:clamp(11px,1.3vw,13px);font-weight:600;color:var(--dim);margin-top:3px}
+#repSub{font-size:clamp(15px,1.9vw,19px);font-weight:600;color:var(--dim);margin-top:3px}
 .mode{margin-top:clamp(10px,1.6vw,18px);font-size:clamp(13px,1.6vw,16px);font-weight:700;
   color:var(--dim);letter-spacing:.02em}
 
@@ -110,10 +110,10 @@ h1{font-size:clamp(28px,4.4vw,44px);font-weight:800;letter-spacing:-.025em;margi
 .ph{display:flex;align-items:center;justify-content:center;min-height:170px;background:var(--surface2);
   color:var(--dim);font-size:13px;font-weight:600;padding:22px;text-align:center}
 .card .body{padding:14px 16px 16px}
-.card h2{margin:0;font-size:clamp(20px,2.6vw,27px);font-weight:700;letter-spacing:-.02em;line-height:1.12}
-.card .kit{margin:7px 0 0;font-size:13px;font-weight:600;color:var(--on)}
-.card .cue{margin:9px 0 0;font-size:15px;line-height:1.5;color:var(--muted);max-width:60ch}
-.card .next{margin:9px 0 0;font-size:13px;color:var(--dim);font-weight:600}
+.card h2{margin:0;font-size:clamp(24px,3.2vw,34px);font-weight:700;letter-spacing:-.02em;line-height:1.12}
+.card .kit{margin:7px 0 0;font-size:17px;font-weight:600;color:var(--on)}
+.card .cue{margin:9px 0 0;font-size:19px;line-height:1.45;color:var(--muted)}
+.phase .next{margin:8px 0 0;font-size:17px;color:var(--dim);font-weight:600}
 
 .wave{flex:0 0 auto;width:100%;height:clamp(54px,8vh,86px);display:block}
 .wave .track{fill:none;stroke:var(--line);stroke-width:3;stroke-linejoin:round}

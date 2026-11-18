@@ -14,7 +14,7 @@ function connectDb(){
   claude.use("db").then(d=>{
     if(!d) return; db=d;
     return d.doc("ems/state").get().then(s=>{
-      if(s && s.exists && s.data){ Object.assign(store, s.data); normalize(); renderHome(); }
+      if(s && s.exists && s.data){ Object.assign(store, s.data); normalize(); selectedDay=store.rotationIndex; renderHome(); }
       else save();
     });
   }).catch(()=>{});
@@ -24,6 +24,11 @@ function connectDb(){
 function normalize(){
   if(!store.program || !Array.isArray(store.program.days) || !store.program.days.length)
     store.program = JSON.parse(JSON.stringify(BUILTIN));
+  // A saved copy of an older built-in program picks up edits; rotation and base counts carry over.
+  else if(store.program.name===BUILTIN.name && (+store.program.version||0)<BUILTIN.version){
+    store.program = JSON.parse(JSON.stringify(BUILTIN));
+    if(store.baseCounts!=null) store.program.days.forEach(d=>{ d.baseCounts=store.baseCounts; });
+  }
   const pi = store.program.impulse || {on:6,off:4};
   if(!store.impulse) store.impulse = {on:+pi.on||6, off:+pi.off||4};
   if(store.baseCounts==null){
@@ -533,7 +538,7 @@ document.addEventListener("keydown",e=>{
   if(e.code==="Escape") quit();
 });
 
-localLoad(); normalize(); renderHome(); connectDb();
+localLoad(); normalize(); selectedDay=store.rotationIndex; save(); renderHome(); connectDb();
 
 /* SW:start (removed by tools/build_standalone.py) */
 if ("serviceWorker" in navigator && window.isSecureContext && location.protocol !== "file:") {
